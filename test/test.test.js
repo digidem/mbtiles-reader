@@ -1,3 +1,4 @@
+import Database from 'better-sqlite3'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
@@ -60,6 +61,16 @@ describe('MBTiles (node)', () => {
       const mbtiles = new MBTiles(path)
       const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
       expect(Buffer.isBuffer(tile.data)).toBe(true)
+      mbtiles.close()
+    })
+
+    it('accepts a Database instance', () => {
+      const path = fileURLToPath(new URL('plain_1.mbtiles', fixturesDir))
+      const db = new Database(path, { readonly: true })
+      const mbtiles = new MBTiles(db)
+      const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
+      expect(tile.format).toBe('png')
+      expect(mbtiles.metadata.name).toBe('plain_1')
       mbtiles.close()
     })
   })
