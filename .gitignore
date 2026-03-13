@@ -26,3 +26,7 @@ Thumbs.db
 
 # Published directory for type definitions
 dist/
+
+# Vitest browser screenshots and attachments
+test/__screenshots__/
+.vitest-attachments/
