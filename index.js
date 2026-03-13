@@ -112,5 +112,5 @@ function tileFromRow({
   if (typeof format !== 'string') {
     throw new Error(`Invalid tile data for tile ${z}/${x}/${y}`)
   }
-  return { z, x, y, data: new Uint8Array(data), format }
+  return { z, x, y, data: new Uint8Array(data.buffer, data.byteOffset, data.byteLength), format }
 }
