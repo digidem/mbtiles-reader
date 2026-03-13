@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 
 import { Readable } from 'node:stream'
 
-import { validate } from './lib/schema.js'
+import { validate as _validate } from './lib/validate.js'
 
 /**
  * @typedef {object} Tile
@@ -14,7 +14,12 @@ import { validate } from './lib/schema.js'
  * @property {tiletype.extensions} format
  */
 
-/** @import { TileRow, MBTilesMetadata } from './lib/schema.js' */
+/** @import { TileRow, MBTilesMetadata } from './lib/validate.js' */
+
+/** @param {import('better-sqlite3').Database} db */
+function validate(db) {
+  return _validate((sql) => db.prepare(sql).all())
+}
 
 export class MBTiles {
   #db

@@ -1,8 +1,21 @@
 import { defineConfig } from 'vitest/config'
 import { playwright } from '@vitest/browser-playwright'
+import type { BrowserInstanceOption } from 'vitest/node'
+
+const browserInstances: BrowserInstanceOption[] = [{ browser: 'chromium' }]
+
+if (process.platform === 'darwin') {
+  browserInstances.push({ browser: 'webkit' })
+}
+
+if (!process.env.CI) {
+  // Firefox tests are flakey in CI, so only run locally
+  browserInstances.push({ browser: 'firefox' })
+}
 
 export default defineConfig({
   test: {
+    reporters: process.env.CI ? ['verbose'] : ['default'],
     projects: [
       {
         test: {
@@ -20,7 +33,8 @@ export default defineConfig({
             enabled: true,
             provider: playwright(),
             headless: true,
-            instances: [{ browser: 'chromium' }],
+            screenshotFailures: false,
+            instances: browserInstances,
           },
         },
       },

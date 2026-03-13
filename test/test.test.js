@@ -1,144 +1,66 @@
-import { readdirSync, readFileSync, existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
 import { MBTiles } from '../index.js'
 
-const tileFixturesFolder = new URL('./fixtures/images/', import.meta.url)
+import { registerSharedTests } from './shared.js'
 
-describe('MBTiles', () => {
-  it('getTile', () => {
-    const plain1Path = new URL('./fixtures/plain_1.mbtiles', import.meta.url)
-    const mbtiles = new MBTiles(fileURLToPath(plain1Path))
-    const tileFixtures = readdirSync(tileFixturesFolder)
-    expect(tileFixtures.length).toBeGreaterThan(0)
-    for (const fileFixture of tileFixtures) {
-      const coords = fileFixture.match(/^plain_1_(\d+)_(\d+)_(\d+).png$/)
-      expect(coords).toBeTruthy()
-      // Flip Y coordinate because file names are TMS, but .getTile() expects XYZ.
-      const z = +coords[3]
-      const x = +coords[1]
-      const y = (1 << z) - 1 - +coords[2]
-      const tile = mbtiles.getTile({ z, x, y })
-      const expectedTile = new URL(fileFixture, tileFixturesFolder)
-      const expectedTileData = readFileSync(expectedTile)
-      expect(tile).toEqual({ data: expectedTileData, z, x, y, format: 'png' })
-    }
+const fixturesDir = new URL('./fixtures/', import.meta.url)
+
+describe('MBTiles (node)', () => {
+  registerSharedTests({
+    async openMBTiles(fixtureName) {
+      const path = fileURLToPath(new URL(fixtureName, fixturesDir))
+      return new MBTiles(path)
+    },
+    async readFixtureImage(filename) {
+      const path = new URL(`images/${filename}`, fixturesDir)
+      return new Uint8Array(readFileSync(path))
+    },
   })
 
-  it('iterator', () => {
-    const plain1Path = new URL('./fixtures/plain_1.mbtiles', import.meta.url)
-    const mbtiles = new MBTiles(fileURLToPath(plain1Path))
-    const tileFixtures = readdirSync(tileFixturesFolder)
-    let count = 0
-    for (const { z, x, y, data } of mbtiles) {
-      const tmsY = (1 << z) - 1 - y
-      const imageFilename = `plain_1_${x}_${tmsY}_${z}.png`
-      const expectedTile = new URL(imageFilename, tileFixturesFolder)
-      const expectedTileData = readFileSync(expectedTile)
-      expect(data).toEqual(expectedTileData)
-      count++
-    }
-    expect(count).toBe(tileFixtures.length)
-  })
+  describe('node-specific', () => {
+    it('readableStream', async () => {
+      const path = fileURLToPath(new URL('plain_1.mbtiles', fixturesDir))
+      const mbtiles = new MBTiles(path)
+      let count = 0
+      for await (const { z, x, y, data, format } of mbtiles.readableStream()) {
+        expect(format).toBe('png')
+        const tmsY = (1 << z) - 1 - y
+        const expected = readFileSync(
+          new URL(`images/plain_1_${x}_${tmsY}_${z}.png`, fixturesDir),
+        )
+        expect(data).toEqual(expected)
+        count++
+      }
+      expect(count).toBe(285)
+    })
 
-  it('readableStream', async () => {
-    const plain1Path = new URL('./fixtures/plain_1.mbtiles', import.meta.url)
-    const mbtiles = new MBTiles(fileURLToPath(plain1Path))
-    const tileFixtures = readdirSync(tileFixturesFolder)
-    let count = 0
-    for await (const { z, x, y, data } of mbtiles.readableStream()) {
-      const tmsY = (1 << z) - 1 - y
-      const imageFilename = `plain_1_${x}_${tmsY}_${z}.png`
-      const expectedTile = new URL(imageFilename, tileFixturesFolder)
-      const expectedTileData = readFileSync(expectedTile)
-      expect(data).toEqual(expectedTileData)
-      count++
-    }
-    expect(count).toBe(tileFixtures.length)
-  })
-
-  it('metadata', () => {
-    const plain1Path = new URL('./fixtures/plain_1.mbtiles', import.meta.url)
-    const mbtiles = new MBTiles(fileURLToPath(plain1Path))
-    const expectedMetadata = {
-      level1: { level2: 'property' },
-      version: '1.0.3',
-      name: 'plain_1',
-      type: 'baselayer',
-      description: 'demo description',
-      formatter: null,
-      bounds: [-180, -70, 180, 85],
-      scheme: 'xyz',
-      minzoom: 0,
-      maxzoom: 4,
-      center: [0, 7.5, 2],
-      format: 'png',
-    }
-    const roundedMetadata = {
-      ...mbtiles.metadata,
-      center: mbtiles.metadata.center.map((v) => Math.round(v * 1e6) / 1e6),
-      bounds: mbtiles.metadata.bounds.map((v) => Math.round(v * 1e6) / 1e6),
-    }
-    expect(roundedMetadata).toEqual(expectedMetadata)
-  })
-
-  it('getTile (invalid)', () => {
-    const plain1Path = new URL('./fixtures/plain_1.mbtiles', import.meta.url)
-    const mbtiles = new MBTiles(fileURLToPath(plain1Path))
-    const invalidTiles = [
-      [0, 1, 0],
-      [-1, 0, 0],
-      [0, 0, 1],
-      [3, 1, -1],
-      [2, -3, 3],
-      [18, 2, 262140],
-      [4, 0, 15],
-    ]
-    for (const [z, x, y] of invalidTiles) {
+    it('non-existent file', () => {
+      const nonExistentPath = new URL('non_existent.mbtiles', fixturesDir)
       expect(() => {
-        mbtiles.getTile({ z, x, y })
-      }).toThrow(`Tile not found: ${z}/${x}/${y}`)
-    }
-  })
+        new MBTiles(fileURLToPath(nonExistentPath))
+      }).toThrow('unable to open database file')
+      expect(existsSync(nonExistentPath)).toBe(false)
+    })
 
-  it('non-existent file', () => {
-    const nonExistentPath = new URL(
-      './fixtures/non_existent.mbtiles',
-      import.meta.url,
-    )
+    it('corrupt file', () => {
+      const corruptPath = fileURLToPath(
+        new URL('corrupt.mbtiles', fixturesDir),
+      )
+      expect(() => {
+        new MBTiles(corruptPath)
+      }).toThrow('database disk image is malformed')
+    })
 
-    expect(() => {
-      new MBTiles(fileURLToPath(nonExistentPath))
-    }).toThrow('unable to open database file')
-    expect(existsSync(nonExistentPath)).toBe(false)
-  })
-
-  it('corrupt file', () => {
-    const corruptPath = new URL('./fixtures/corrupt.mbtiles', import.meta.url)
-    expect(() => {
-      new MBTiles(fileURLToPath(corruptPath))
-    }).toThrow('database disk image is malformed')
-  })
-
-  it('corrupt null tile', () => {
-    const corruptNullTilePath = new URL(
-      './fixtures/corrupt_null_tile.mbtiles',
-      import.meta.url,
-    )
-    const mbtiles = new MBTiles(fileURLToPath(corruptNullTilePath))
-    expect(() => {
-      mbtiles.getTile({ z: 1, x: 0, y: 1 })
-    }).toThrow('Invalid tile data for tile 1/0/1')
-  })
-
-  it('close()', () => {
-    const plain1Path = new URL('./fixtures/plain_1.mbtiles', import.meta.url)
-    const mbtiles = new MBTiles(fileURLToPath(plain1Path))
-    mbtiles.close()
-    expect(() => {
-      mbtiles.getTile({ z: 1, x: 0, y: 1 })
-    }).toThrow('The database connection is not open')
+    it('tile data is Buffer', () => {
+      const path = fileURLToPath(new URL('plain_1.mbtiles', fixturesDir))
+      const mbtiles = new MBTiles(path)
+      const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
+      expect(Buffer.isBuffer(tile.data)).toBe(true)
+      mbtiles.close()
+    })
   })
 })
