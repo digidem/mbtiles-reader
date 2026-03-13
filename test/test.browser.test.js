@@ -46,6 +46,13 @@ describe('MBTiles (browser)', () => {
       mbtiles.close()
     })
 
+    it('constructor throws without MBTiles.open()', () => {
+      expect(() => {
+        // @ts-expect-error - testing runtime guard
+        new MBTiles()
+      }).toThrow('Use MBTiles.open() to create an instance')
+    })
+
     it('corrupt file rejects', async () => {
       const buffer = await fetchFixture('corrupt.mbtiles')
       await expect(MBTiles.open(buffer)).rejects.toThrow()

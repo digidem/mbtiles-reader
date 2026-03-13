@@ -10,7 +10,7 @@ import { validate as _validate } from './lib/validate.js'
  * @property {number} z
  * @property {number} x
  * @property {number} y
- * @property {Buffer} data
+ * @property {Uint8Array} data
  * @property {tiletype.extensions} format
  */
 
@@ -112,5 +112,5 @@ function tileFromRow({
   if (typeof format !== 'string') {
     throw new Error(`Invalid tile data for tile ${z}/${x}/${y}`)
   }
-  return { z, x, y, data, format }
+  return { z, x, y, data: new Uint8Array(data), format }
 }

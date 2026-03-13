@@ -30,9 +30,9 @@ describe('MBTiles (node)', () => {
       for await (const { z, x, y, data, format } of mbtiles.readableStream()) {
         expect(format).toBe('png')
         const tmsY = (1 << z) - 1 - y
-        const expected = readFileSync(
+        const expected = new Uint8Array(readFileSync(
           new URL(`images/plain_1_${x}_${tmsY}_${z}.png`, fixturesDir),
-        )
+        ))
         expect(data).toEqual(expected)
         count++
       }
@@ -56,11 +56,12 @@ describe('MBTiles (node)', () => {
       }).toThrow('database disk image is malformed')
     })
 
-    it('tile data is Buffer', () => {
+    it('tile data is Uint8Array (not Buffer)', () => {
       const path = fileURLToPath(new URL('plain_1.mbtiles', fixturesDir))
       const mbtiles = new MBTiles(path)
       const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
-      expect(Buffer.isBuffer(tile.data)).toBe(true)
+      expect(tile.data).toBeInstanceOf(Uint8Array)
+      expect(Buffer.isBuffer(tile.data)).toBe(false)
       mbtiles.close()
     })
 

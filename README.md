@@ -24,7 +24,7 @@ const mbtiles = new MBTiles('path/to/tiles.mbtiles')
 // Read a single tile (XYZ coordinates)
 const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
 console.log(tile.format) // 'png', 'jpg', 'webp', or 'pbf'
-console.log(tile.data)   // Buffer
+console.log(tile.data)   // Uint8Array
 
 // Iterate over all tiles
 for (const { z, x, y, data, format } of mbtiles) {
@@ -124,7 +124,7 @@ Returns a `Tile`:
 | `z`      | `number`                       | Zoom level           |
 | `x`      | `number`                       | Tile column          |
 | `y`      | `number`                       | Tile row             |
-| `data`   | `Buffer` (Node) / `Uint8Array` (browser) | Raw tile data |
+| `data`   | `Uint8Array`                   | Raw tile data        |
 | `format` | `string`                       | `'png'`, `'jpg'`, `'webp'`, or `'pbf'` |
 
 #### `mbtiles.metadata` → `MBTilesMetadata`

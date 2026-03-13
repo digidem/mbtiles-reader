@@ -16,6 +16,9 @@ import { validate } from './lib/validate.js'
 
 let /** @type {import('@sqlite.org/sqlite-wasm').default | undefined} */ sqlite3
 
+/** @type {unique symbol} */
+const INTERNAL = Symbol('MBTiles.internal')
+
 export class MBTiles {
   /** @type {import('@sqlite.org/sqlite-wasm').Database} */
   #db
@@ -25,10 +28,14 @@ export class MBTiles {
   #closed = false
 
   /**
+   * @param {symbol} token
    * @param {import('@sqlite.org/sqlite-wasm').Database} db
    * @param {MBTilesMetadata} metadata
    */
-  constructor(db, metadata) {
+  constructor(token, db, metadata) {
+    if (token !== INTERNAL) {
+      throw new TypeError('Use MBTiles.open() to create an instance')
+    }
     this.#db = db
     this.#metadata = metadata
   }
@@ -70,7 +77,7 @@ export class MBTiles {
       db.exec(sql, { rowMode: 'object', returnValue: 'resultRows' })
 
     const metadata = validate(query)
-    return new MBTiles(db, metadata)
+    return new MBTiles(INTERNAL, db, metadata)
   }
 
   /**
