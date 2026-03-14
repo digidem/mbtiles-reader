@@ -10,6 +10,8 @@ npm install mbtiles-reader
 
 The correct entry point is selected automatically via the `"browser"` [condition](https://nodejs.org/api/packages.html#conditional-exports) in `package.json`. Bundlers like Vite, Webpack, esbuild, and Rollup all support this out of the box.
 
+The platform-specific SQLite drivers (`better-sqlite3` for Node.js, `@sqlite.org/sqlite-wasm` for browsers) are optional dependencies — only the one needed for your platform will be used, and a failed install of the other won't cause errors.
+
 ## Usage (Node.js)
 
 ```js
@@ -24,7 +26,7 @@ const mbtiles = new MBTiles('path/to/tiles.mbtiles')
 // Read a single tile (XYZ coordinates)
 const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
 console.log(tile.format) // 'png', 'jpg', 'webp', or 'pbf'
-console.log(tile.data)   // Uint8Array
+console.log(tile.data) // Uint8Array
 
 // Iterate over all tiles
 for (const { z, x, y, data, format } of mbtiles) {
@@ -116,31 +118,31 @@ Returns the tile at the given XYZ coordinates. Throws if the tile does not exist
 
 Returns a `Tile`:
 
-| Property | Type                           | Description          |
-| -------- | ------------------------------ | -------------------- |
-| `z`      | `number`                       | Zoom level           |
-| `x`      | `number`                       | Tile column          |
-| `y`      | `number`                       | Tile row             |
-| `data`   | `Uint8Array`                   | Raw tile data        |
-| `format` | `string`                       | `'png'`, `'jpg'`, `'webp'`, or `'pbf'` |
+| Property | Type         | Description                            |
+| -------- | ------------ | -------------------------------------- |
+| `z`      | `number`     | Zoom level                             |
+| `x`      | `number`     | Tile column                            |
+| `y`      | `number`     | Tile row                               |
+| `data`   | `Uint8Array` | Raw tile data                          |
+| `format` | `string`     | `'png'`, `'jpg'`, `'webp'`, or `'pbf'` |
 
 #### `mbtiles.metadata` → `MBTilesMetadata`
 
 Metadata from the MBTiles file per the [MBTiles spec](https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#metadata). Properties `bounds`, `center`, `minzoom`, and `maxzoom` are always present — they are derived from the tile data if not set explicitly in the metadata table.
 
-| Property      | Type                         | Description                       |
-| ------------- | ---------------------------- | --------------------------------- |
-| `name`        | `string`                     | Tileset name (required by spec)   |
-| `format`      | `string`                     | Tile format: `png`, `jpg`, `webp`, or `pbf` |
-| `scheme`      | `'xyz'`                      | Always `'xyz'` (TMS rows are converted) |
-| `minzoom`     | `number`                     | Minimum zoom level                |
-| `maxzoom`     | `number`                     | Maximum zoom level                |
-| `bounds`      | `[w, s, e, n]`               | Bounding box in WGS84             |
-| `center`      | `[lng, lat, zoom]`           | Default center point              |
-| `attribution` | `string` *(optional)*        | Attribution string                |
-| `description` | `string` *(optional)*        | Tileset description               |
-| `version`     | `number` *(optional)*        | Tileset version                   |
-| `type`        | `'overlay' \| 'baselayer'` *(optional)* | Layer type         |
+| Property      | Type                                    | Description                                 |
+| ------------- | --------------------------------------- | ------------------------------------------- |
+| `name`        | `string`                                | Tileset name (required by spec)             |
+| `format`      | `string`                                | Tile format: `png`, `jpg`, `webp`, or `pbf` |
+| `scheme`      | `'xyz'`                                 | Always `'xyz'` (TMS rows are converted)     |
+| `minzoom`     | `number`                                | Minimum zoom level                          |
+| `maxzoom`     | `number`                                | Maximum zoom level                          |
+| `bounds`      | `[w, s, e, n]`                          | Bounding box in WGS84                       |
+| `center`      | `[lng, lat, zoom]`                      | Default center point                        |
+| `attribution` | `string` _(optional)_                   | Attribution string                          |
+| `description` | `string` _(optional)_                   | Tileset description                         |
+| `version`     | `number` _(optional)_                   | Tileset version                             |
+| `type`        | `'overlay' \| 'baselayer'` _(optional)_ | Layer type                                  |
 
 For `pbf` (vector tile) tilesets, the `json` metadata field is parsed and merged, with explicit metadata values taking precedence.
 
@@ -149,7 +151,9 @@ For `pbf` (vector tile) tilesets, the `json` metadata field is parsed and merged
 Iterates over every tile in the file:
 
 ```js
-for (const tile of mbtiles) { /* ... */ }
+for (const tile of mbtiles) {
+  /* ... */
+}
 ```
 
 #### `mbtiles.close()`

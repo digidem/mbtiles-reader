@@ -14,4 +14,20 @@ export default [
     },
     rules: {},
   },
+  {
+    files: ['test/browser.test.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
+  {
+    files: ['test/opfs-worker.js'],
+    languageOptions: {
+      globals: {
+        ...globals.worker,
+      },
+    },
+  },
 ]

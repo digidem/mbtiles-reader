@@ -46,7 +46,9 @@
   },
   "dependencies": {
     "@mapbox/sphericalmercator": "^2.0.1",
-    "@mapbox/tiletype": "0.3.x",
+    "@mapbox/tiletype": "0.3.x"
+  },
+  "optionalDependencies": {
     "@sqlite.org/sqlite-wasm": "^3.51.2-build7",
     "better-sqlite3": "^11.5.0"
   },
