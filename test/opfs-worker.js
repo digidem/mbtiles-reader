@@ -44,8 +44,20 @@ self.onmessage = async (event) => {
  */
 async function copyToOpfs(buffer, filename) {
   const root = await navigator.storage.getDirectory()
+  // Remove any stale file first to avoid lock conflicts
+  await root.removeEntry(filename).catch(() => {})
   const fileHandle = await root.getFileHandle(filename, { create: true })
-  const accessHandle = await fileHandle.createSyncAccessHandle()
+  // Retry createSyncAccessHandle for WebKit transient OPFS errors
+  let accessHandle
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      accessHandle = await fileHandle.createSyncAccessHandle()
+      break
+    } catch (e) {
+      if (attempt === 2) throw e
+      await new Promise((r) => setTimeout(r, 100 * (attempt + 1)))
+    }
+  }
   try {
     accessHandle.write(new Uint8Array(buffer), { at: 0 })
   } finally {
