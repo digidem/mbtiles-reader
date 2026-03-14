@@ -29,18 +29,34 @@ export default defineConfig({
         optimizeDeps: {
           exclude: ['@sqlite.org/sqlite-wasm'],
         },
-        server: {
-          headers: {
-            'Cross-Origin-Opener-Policy': 'same-origin',
-            'Cross-Origin-Embedder-Policy': 'require-corp',
+        plugins: [
+          {
+            name: 'cross-origin-isolation',
+            configureServer(server) {
+              server.middlewares.use((_req, res, next) => {
+                res.setHeader(
+                  'Cross-Origin-Opener-Policy',
+                  'same-origin',
+                )
+                res.setHeader(
+                  'Cross-Origin-Embedder-Policy',
+                  'require-corp',
+                )
+                next()
+              })
+            },
           },
-        },
+        ],
         test: {
           name: 'browser',
           include: ['test/browser.test.js'],
           browser: {
             enabled: true,
-            provider: playwright(),
+            provider: playwright({
+              launchOptions: {
+                args: ['--enable-features=SharedArrayBuffer'],
+              },
+            }),
             headless: true,
             screenshotFailures: false,
             instances: browserInstances,

@@ -97,42 +97,36 @@ describe('MBTiles (browser)', () => {
       })
     }
 
-    it.skipIf(!self.crossOriginIsolated)(
-      'opens MBTiles via OPFS in a worker',
-      async () => {
-        const worker = new Worker(
-          new URL('./opfs-worker.js', import.meta.url),
-          {
-            type: 'module',
-          },
-        )
-        try {
-          const buffer = await fetchFixture('plain_1.mbtiles')
-          const opened = await workerRpc(worker, { type: 'open', buffer }, [
-            buffer,
-          ])
-          expect(opened.type).toBe('opened')
-          expect(opened.metadata.name).toBe('plain_1')
-          expect(opened.metadata.format).toBe('png')
+    it('opens MBTiles via OPFS in a worker', async () => {
+      const worker = new Worker(new URL('./opfs-worker.js', import.meta.url), {
+        type: 'module',
+      })
+      try {
+        const buffer = await fetchFixture('plain_1.mbtiles')
+        const opened = await workerRpc(worker, { type: 'open', buffer }, [
+          buffer,
+        ])
+        expect(opened.type).toBe('opened')
+        expect(opened.metadata.name).toBe('plain_1')
+        expect(opened.metadata.format).toBe('png')
 
-          const tileResult = await workerRpc(worker, {
-            type: 'getTile',
-            coords: { z: 0, x: 0, y: 0 },
-          })
-          expect(tileResult.type).toBe('tile')
-          expect(tileResult.tile.format).toBe('png')
-          expect(tileResult.data).toBeInstanceOf(Uint8Array)
-          expect(tileResult.data.length).toBeGreaterThan(0)
+        const tileResult = await workerRpc(worker, {
+          type: 'getTile',
+          coords: { z: 0, x: 0, y: 0 },
+        })
+        expect(tileResult.type).toBe('tile')
+        expect(tileResult.tile.format).toBe('png')
+        expect(tileResult.data).toBeInstanceOf(Uint8Array)
+        expect(tileResult.data.length).toBeGreaterThan(0)
 
-          const expected = await fetchFixture('images/plain_1_0_0_0.png')
-          expect(tileResult.data).toEqual(new Uint8Array(expected))
+        const expected = await fetchFixture('images/plain_1_0_0_0.png')
+        expect(tileResult.data).toEqual(new Uint8Array(expected))
 
-          const closed = await workerRpc(worker, { type: 'close' })
-          expect(closed.type).toBe('closed')
-        } finally {
-          worker.terminate()
-        }
-      },
-    )
+        const closed = await workerRpc(worker, { type: 'close' })
+        expect(closed.type).toBe('closed')
+      } finally {
+        worker.terminate()
+      }
+    })
   })
 })
