@@ -97,7 +97,11 @@ describe('MBTiles (browser)', () => {
       })
     }
 
-    it('opens MBTiles via OPFS in a worker', async () => {
+    // WebKit does not support SharedArrayBuffer in workers (needed for OPFS)
+    const isWebKit =
+      /AppleWebKit/.test(navigator.userAgent) &&
+      !/Chrome/.test(navigator.userAgent)
+    it.skipIf(isWebKit)('opens MBTiles via OPFS in a worker', async () => {
       const worker = new Worker(new URL('./opfs-worker.js', import.meta.url), {
         type: 'module',
       })
