@@ -64,7 +64,33 @@ for (const { z, x, y, data, format } of mbtiles) {
 
 console.log(mbtiles.metadata)
 
-await mbtiles.close()
+mbtiles.close()
+```
+
+### OPFS (Web Worker)
+
+When running in a Web Worker, you can pass an [OPFS](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system) file path to `MBTiles.open()` instead of loading the entire file into memory. The consumer is responsible for writing the file to OPFS first:
+
+```js
+// In a Web Worker:
+
+// 1. Write the file to OPFS (your responsibility)
+const root = await navigator.storage.getDirectory()
+const handle = await root.getFileHandle('tiles.mbtiles', { create: true })
+const access = await handle.createSyncAccessHandle()
+access.write(new Uint8Array(buffer), { at: 0 })
+access.flush()
+access.close()
+
+// 2. Open by OPFS path — uses OpfsDb, no copy into wasm memory
+const mbtiles = await MBTiles.open('tiles.mbtiles')
+
+// 3. Use as normal
+const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
+mbtiles.close()
+
+// 4. Clean up OPFS when done (your responsibility)
+await root.removeEntry('tiles.mbtiles')
 ```
 
 ### Bundler configuration
@@ -100,9 +126,9 @@ Creates a new MBTiles reader. Throws if the file is missing, corrupt, or not a v
 
 Opens an MBTiles database in the browser.
 
-- `source` — a `File`, `ArrayBuffer`, or `Uint8Array` containing the MBTiles data.
+- `source` — an OPFS file path (`string`), `File`, `ArrayBuffer`, or `Uint8Array`.
 
-When running in a Web Worker with [OPFS](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system) support, the file is copied to the Origin Private File System and opened with `OpfsDb`. This avoids loading the entire database into wasm memory, so it handles large files more efficiently. Otherwise, the file is loaded into memory using SQLite's `sqlite3_deserialize`.
+When `source` is a string, it is treated as an OPFS file path and opened directly with `OpfsDb` (requires a Web Worker context). This avoids loading the entire database into wasm memory. When `source` is a `File`, `ArrayBuffer`, or `Uint8Array`, the data is loaded into memory using SQLite's `sqlite3_deserialize`.
 
 ### Shared API
 
@@ -158,7 +184,7 @@ for (const tile of mbtiles) {
 
 #### `mbtiles.close()`
 
-Closes the underlying database. The instance should not be used after calling this. In the browser, returns a `Promise` that resolves once any OPFS cleanup is complete.
+Closes the underlying database. The instance should not be used after calling this.
 
 ## Coordinate system
 

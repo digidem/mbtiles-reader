@@ -24,7 +24,7 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
 
       const expected = await readFixtureImage('plain_1_0_0_0.png')
       expect(new Uint8Array(tile.data)).toEqual(expected)
-      await mbtiles.close()
+      mbtiles.close()
     })
 
     it('returns correct data for tiles across zoom levels', async () => {
@@ -44,12 +44,10 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
         expect(tile.y).toBe(y)
         expect(tile.format).toBe('png')
 
-        const expected = await readFixtureImage(
-          `plain_1_${x}_${tmsY}_${z}.png`,
-        )
+        const expected = await readFixtureImage(`plain_1_${x}_${tmsY}_${z}.png`)
         expect(new Uint8Array(tile.data)).toEqual(expected)
       }
-      await mbtiles.close()
+      mbtiles.close()
     })
 
     it('throws for invalid tile coordinates', async () => {
@@ -68,7 +66,7 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
           mbtiles.getTile({ z, x, y })
         }).toThrow(`Tile not found: ${z}/${x}/${y}`)
       }
-      await mbtiles.close()
+      mbtiles.close()
     })
   })
 
@@ -81,14 +79,12 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
         expect(data.length).toBeGreaterThan(0)
 
         const tmsY = (1 << z) - 1 - y
-        const expected = await readFixtureImage(
-          `plain_1_${x}_${tmsY}_${z}.png`,
-        )
+        const expected = await readFixtureImage(`plain_1_${x}_${tmsY}_${z}.png`)
         expect(new Uint8Array(data)).toEqual(expected)
         count++
       }
       expect(count).toBe(285)
-      await mbtiles.close()
+      mbtiles.close()
     })
   })
 
@@ -119,7 +115,7 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
         ),
       }
       expect(roundedMetadata).toEqual(expectedMetadata)
-      await mbtiles.close()
+      mbtiles.close()
     })
   })
 
@@ -129,14 +125,14 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
       expect(() => {
         mbtiles.getTile({ z: 1, x: 0, y: 1 })
       }).toThrow('Invalid tile data for tile 1/0/1')
-      await mbtiles.close()
+      mbtiles.close()
     })
   })
 
   describe('close', () => {
     it('prevents further operations after closing', async () => {
       const mbtiles = await openMBTiles('plain_1.mbtiles')
-      await mbtiles.close()
+      mbtiles.close()
       expect(() => {
         mbtiles.getTile({ z: 1, x: 0, y: 1 })
       }).toThrow()
