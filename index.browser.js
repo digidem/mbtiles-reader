@@ -19,29 +19,39 @@ let /** @type {import('@sqlite.org/sqlite-wasm').default | undefined} */ sqlite3
 /** @type {unique symbol} */
 const INTERNAL = Symbol('MBTiles.internal')
 
+let opfsCounter = 0
+
 export class MBTiles {
   /** @type {import('@sqlite.org/sqlite-wasm').Database} */
   #db
   /** @type {MBTilesMetadata} */
   #metadata
-  /** @type {boolean} */
-  #closed = false
+  /** @type {(() => Promise<void>) | undefined} */
+  #cleanup
 
   /**
    * @param {symbol} token
    * @param {import('@sqlite.org/sqlite-wasm').Database} db
    * @param {MBTilesMetadata} metadata
+   * @param {(() => Promise<void>)} [cleanup]
    */
-  constructor(token, db, metadata) {
+  constructor(token, db, metadata, cleanup) {
     if (token !== INTERNAL) {
       throw new TypeError('Use MBTiles.open() to create an instance')
     }
     this.#db = db
     this.#metadata = metadata
+    this.#cleanup = cleanup
   }
 
   /**
    * Open an MBTiles database from a File, ArrayBuffer, or Uint8Array.
+   *
+   * When running in a Web Worker with OPFS support, the file is copied to the
+   * Origin Private File System and opened with `OpfsDb`, avoiding loading
+   * the entire database into wasm memory. Otherwise, the file is loaded into
+   * memory using `sqlite3_deserialize`.
+   *
    * @param {File | ArrayBuffer | Uint8Array} source
    * @returns {Promise<MBTiles>}
    */
@@ -49,35 +59,10 @@ export class MBTiles {
     if (!sqlite3) {
       sqlite3 = await sqlite3InitModule()
     }
-    const bytes =
-      source instanceof Uint8Array
-        ? source
-        : source instanceof ArrayBuffer
-          ? new Uint8Array(source)
-          : new Uint8Array(await source.arrayBuffer())
-
-    const db = new sqlite3.oo1.DB()
-    const p = sqlite3.wasm.alloc(bytes.length)
-    sqlite3.wasm.heap8u().set(bytes, p)
-    const rc = sqlite3.capi.sqlite3_deserialize(
-      db.pointer,
-      'main',
-      p,
-      bytes.length,
-      bytes.length,
-      sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE |
-        sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE,
-    )
-    if (rc !== 0) {
-      throw new Error(`Failed to deserialize database: rc=${rc}`)
+    if (sqlite3.oo1.OpfsDb) {
+      return openWithOpfs(sqlite3, source)
     }
-
-    /** @type {import('./lib/validate.js').QueryFn} */
-    const query = (sql) =>
-      db.exec(sql, { rowMode: 'object', returnValue: 'resultRows' })
-
-    const metadata = validate(query)
-    return new MBTiles(INTERNAL, db, metadata)
+    return openInMemory(sqlite3, source)
   }
 
   /**
@@ -118,9 +103,11 @@ export class MBTiles {
     return this.#metadata
   }
 
-  close() {
+  async close() {
     this.#db.close()
-    this.#closed = true
+    if (this.#cleanup) {
+      await this.#cleanup()
+    }
   }
 
   /**
@@ -137,6 +124,91 @@ export class MBTiles {
       yield tileFromRow(row)
     }
   }
+}
+
+/**
+ * Open using OPFS — copies the source file to the Origin Private File System
+ * then opens it with OpfsDb. This avoids loading the entire file into wasm
+ * memory, so it handles large files more efficiently.
+ *
+ * @param {import('@sqlite.org/sqlite-wasm').default} sqlite3
+ * @param {File | ArrayBuffer | Uint8Array} source
+ * @returns {Promise<MBTiles>}
+ */
+async function openWithOpfs(sqlite3, source) {
+  const filename = `mbtiles-reader-${opfsCounter++}.mbtiles`
+  const root = await navigator.storage.getDirectory()
+  const fileHandle = await root.getFileHandle(filename, { create: true })
+  const accessHandle = await fileHandle.createSyncAccessHandle()
+  try {
+    if (source instanceof File) {
+      let position = 0
+      const reader = source.stream().getReader()
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        accessHandle.write(value, { at: position })
+        position += value.byteLength
+      }
+    } else {
+      const bytes =
+        source instanceof Uint8Array ? source : new Uint8Array(source)
+      accessHandle.write(bytes, { at: 0 })
+    }
+  } finally {
+    accessHandle.flush()
+    accessHandle.close()
+  }
+
+  const db = new sqlite3.oo1.OpfsDb(filename, 'r')
+
+  /** @type {import('./lib/validate.js').QueryFn} */
+  const query = (sql) =>
+    db.exec(sql, { rowMode: 'object', returnValue: 'resultRows' })
+
+  const metadata = validate(query)
+  const cleanup = () => root.removeEntry(filename).catch(() => {})
+  return new MBTiles(INTERNAL, db, metadata, cleanup)
+}
+
+/**
+ * Open in-memory using sqlite3_deserialize. This loads the entire database
+ * into wasm memory, which is simpler but uses more memory for large files.
+ *
+ * @param {import('@sqlite.org/sqlite-wasm').default} sqlite3
+ * @param {File | ArrayBuffer | Uint8Array} source
+ * @returns {Promise<MBTiles>}
+ */
+async function openInMemory(sqlite3, source) {
+  const bytes =
+    source instanceof Uint8Array
+      ? source
+      : source instanceof ArrayBuffer
+        ? new Uint8Array(source)
+        : new Uint8Array(await source.arrayBuffer())
+
+  const db = new sqlite3.oo1.DB()
+  const p = sqlite3.wasm.alloc(bytes.length)
+  sqlite3.wasm.heap8u().set(bytes, p)
+  const rc = sqlite3.capi.sqlite3_deserialize(
+    db.pointer,
+    'main',
+    p,
+    bytes.length,
+    bytes.length,
+    sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE |
+      sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE,
+  )
+  if (rc !== 0) {
+    throw new Error(`Failed to deserialize database: rc=${rc}`)
+  }
+
+  /** @type {import('./lib/validate.js').QueryFn} */
+  const query = (sql) =>
+    db.exec(sql, { rowMode: 'object', returnValue: 'resultRows' })
+
+  const metadata = validate(query)
+  return new MBTiles(INTERNAL, db, metadata)
 }
 
 /**

@@ -62,7 +62,7 @@ for (const { z, x, y, data, format } of mbtiles) {
 
 console.log(mbtiles.metadata)
 
-mbtiles.close()
+await mbtiles.close()
 ```
 
 ### Bundler configuration
@@ -96,9 +96,11 @@ Creates a new MBTiles reader. Throws if the file is missing, corrupt, or not a v
 
 #### `MBTiles.open(source)` → `Promise<MBTiles>`
 
-Opens an MBTiles database in the browser. The entire file is loaded into memory using SQLite's `sqlite3_deserialize`.
+Opens an MBTiles database in the browser.
 
 - `source` — a `File`, `ArrayBuffer`, or `Uint8Array` containing the MBTiles data.
+
+When running in a Web Worker with [OPFS](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system) support, the file is copied to the Origin Private File System and opened with `OpfsDb`. This avoids loading the entire database into wasm memory, so it handles large files more efficiently. Otherwise, the file is loaded into memory using SQLite's `sqlite3_deserialize`.
 
 ### Shared API
 
@@ -152,7 +154,7 @@ for (const tile of mbtiles) { /* ... */ }
 
 #### `mbtiles.close()`
 
-Closes the underlying database. The instance should not be used after calling this.
+Closes the underlying database. The instance should not be used after calling this. In the browser, returns a `Promise` that resolves once any OPFS cleanup is complete.
 
 ## Coordinate system
 

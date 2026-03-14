@@ -24,7 +24,7 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
 
       const expected = await readFixtureImage('plain_1_0_0_0.png')
       expect(new Uint8Array(tile.data)).toEqual(expected)
-      mbtiles.close()
+      await mbtiles.close()
     })
 
     it('returns correct data for tiles across zoom levels', async () => {
@@ -49,7 +49,7 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
         )
         expect(new Uint8Array(tile.data)).toEqual(expected)
       }
-      mbtiles.close()
+      await mbtiles.close()
     })
 
     it('throws for invalid tile coordinates', async () => {
@@ -68,7 +68,7 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
           mbtiles.getTile({ z, x, y })
         }).toThrow(`Tile not found: ${z}/${x}/${y}`)
       }
-      mbtiles.close()
+      await mbtiles.close()
     })
   })
 
@@ -88,7 +88,7 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
         count++
       }
       expect(count).toBe(285)
-      mbtiles.close()
+      await mbtiles.close()
     })
   })
 
@@ -119,7 +119,7 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
         ),
       }
       expect(roundedMetadata).toEqual(expectedMetadata)
-      mbtiles.close()
+      await mbtiles.close()
     })
   })
 
@@ -129,14 +129,14 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
       expect(() => {
         mbtiles.getTile({ z: 1, x: 0, y: 1 })
       }).toThrow('Invalid tile data for tile 1/0/1')
-      mbtiles.close()
+      await mbtiles.close()
     })
   })
 
   describe('close', () => {
     it('prevents further operations after closing', async () => {
       const mbtiles = await openMBTiles('plain_1.mbtiles')
-      mbtiles.close()
+      await mbtiles.close()
       expect(() => {
         mbtiles.getTile({ z: 1, x: 0, y: 1 })
       }).toThrow()

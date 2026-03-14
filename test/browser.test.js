@@ -32,7 +32,7 @@ describe('MBTiles (browser)', () => {
       const mbtiles = await MBTiles.open(new Uint8Array(buffer))
       const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
       expect(tile.format).toBe('png')
-      mbtiles.close()
+      await mbtiles.close()
     })
 
     it('open with File', async () => {
@@ -43,7 +43,7 @@ describe('MBTiles (browser)', () => {
       const mbtiles = await MBTiles.open(file)
       const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
       expect(tile.format).toBe('png')
-      mbtiles.close()
+      await mbtiles.close()
     })
 
     it('constructor throws without MBTiles.open()', () => {
@@ -64,7 +64,7 @@ describe('MBTiles (browser)', () => {
       const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
       expect(tile.data).toBeInstanceOf(Uint8Array)
       expect(ArrayBuffer.isView(tile.data)).toBe(true)
-      mbtiles.close()
+      await mbtiles.close()
     })
   })
 })
