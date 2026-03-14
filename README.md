@@ -31,11 +31,6 @@ for (const { z, x, y, data, format } of mbtiles) {
   console.log(`${z}/${x}/${y}: ${data.length} bytes (${format})`)
 }
 
-// Or use a readable stream
-for await (const tile of mbtiles.readableStream()) {
-  // ...
-}
-
 // Access metadata
 console.log(mbtiles.metadata)
 // { name, format, scheme, minzoom, maxzoom, bounds, center, ... }
@@ -154,10 +149,6 @@ Iterates over every tile in the file:
 ```js
 for (const tile of mbtiles) { /* ... */ }
 ```
-
-#### `mbtiles.readableStream()` → `Readable` *(Node.js only)*
-
-Returns a Node.js readable stream of `Tile` objects.
 
 #### `mbtiles.close()`
 

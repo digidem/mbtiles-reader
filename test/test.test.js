@@ -23,22 +23,6 @@ describe('MBTiles (node)', () => {
   })
 
   describe('node-specific', () => {
-    it('readableStream', async () => {
-      const path = fileURLToPath(new URL('plain_1.mbtiles', fixturesDir))
-      const mbtiles = new MBTiles(path)
-      let count = 0
-      for await (const { z, x, y, data, format } of mbtiles.readableStream()) {
-        expect(format).toBe('png')
-        const tmsY = (1 << z) - 1 - y
-        const expected = new Uint8Array(readFileSync(
-          new URL(`images/plain_1_${x}_${tmsY}_${z}.png`, fixturesDir),
-        ))
-        expect(data).toEqual(expected)
-        count++
-      }
-      expect(count).toBe(285)
-    })
-
     it('non-existent file', () => {
       const nonExistentPath = new URL('non_existent.mbtiles', fixturesDir)
       expect(() => {

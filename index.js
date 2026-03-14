@@ -1,8 +1,6 @@
 import tiletype from '@mapbox/tiletype'
 import Database from 'better-sqlite3'
 
-import { Readable } from 'node:stream'
-
 import { validate as _validate } from './lib/validate.js'
 
 /**
@@ -84,13 +82,6 @@ export class MBTiles {
     }
   }
 
-  /**
-   * Readable stream of all tiles in the MBTiles file.
-   * @returns {Readable}
-   */
-  readableStream() {
-    return Readable.from(this)
-  }
 }
 
 /**
