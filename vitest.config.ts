@@ -22,7 +22,7 @@ export default defineConfig({
           name: 'node',
           environment: 'node',
           include: ['test/*.test.js'],
-          exclude: ['test/*.browser.test.js'],
+          exclude: ['test/browser.test.js'],
         },
       },
       {
@@ -37,7 +37,7 @@ export default defineConfig({
         },
         test: {
           name: 'browser',
-          include: ['test/*.browser.test.js'],
+          include: ['test/browser.test.js'],
           browser: {
             enabled: true,
             provider: playwright(),
