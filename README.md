@@ -88,6 +88,30 @@ mbtiles.close()
 await root.removeEntry('tiles.mbtiles')
 ```
 
+### TypeScript
+
+This package includes type declarations for both entry points. TypeScript resolves the correct types based on your `moduleResolution` setting:
+
+| `moduleResolution`                            | Types resolved    | `MBTiles.open()` accepts                          |
+| --------------------------------------------- | ----------------- | ------------------------------------------------- |
+| `"nodenext"` / `"node16"`                     | Node.js           | `string \| ArrayBuffer \| Uint8Array \| Database` |
+| `"bundler"`                                   | Node.js (default) | same as above                                     |
+| `"bundler"` + `customConditions: ["browser"]` | Browser           | `string \| File \| ArrayBuffer \| Uint8Array`     |
+
+TypeScript does not set the `"browser"` condition automatically in any mode. By default, the Node.js types are resolved, which include `MBTiles.open()` and all shared methods — this works for most browser consumers since the common source types (`string`, `ArrayBuffer`, `Uint8Array`) are the same on both platforms.
+
+If you need browser-specific types (e.g. `File` support in autocomplete), add `customConditions` to your `tsconfig.json`:
+
+```jsonc
+// tsconfig.json
+{
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "customConditions": ["browser"],
+  },
+}
+```
+
 ### Bundler configuration
 
 The browser entry point uses `@sqlite.org/sqlite-wasm`, which loads a `.wasm` file at runtime. Most bundlers need to be told not to pre-bundle this dependency, so the `.wasm` file can be resolved and served correctly.
