@@ -1,46 +1,67 @@
-import tiletype from '@mapbox/tiletype'
 import Database from 'better-sqlite3'
 
+import { tileFromRow } from './lib/tile.js'
 import { validate as _validate } from './lib/validate.js'
 
-/**
- * @typedef {object} Tile
- * @property {number} z
- * @property {number} x
- * @property {number} y
- * @property {Uint8Array} data
- * @property {tiletype.extensions} format
- */
-
+/** @import { Tile } from './lib/tile.js' */
 /** @import { TileRow, MBTilesMetadata } from './lib/validate.js' */
+
+/** @type {unique symbol} */
+const INTERNAL = Symbol('MBTiles.internal')
 
 /** @param {import('better-sqlite3').Database} db */
 function validate(db) {
-  return _validate((sql) => db.prepare(sql).all())
+  return _validate(
+    (sql) => /** @type {Record<string, any>[]} */ (db.prepare(sql).all()),
+  )
 }
 
 export class MBTiles {
+  /** @type {import('better-sqlite3').Database} */
   #db
   /** @type {MBTilesMetadata} */
   #metadata
   /** @type {import('better-sqlite3').Statement<[number, number, number], TileRow>} */
   #getTileStmt
+
   /**
-   * @param {string | import('better-sqlite3').Database} filePathOrDb
+   * @param {symbol} token
+   * @param {import('better-sqlite3').Database} db
+   * @param {MBTilesMetadata} metadata
    */
-  constructor(filePathOrDb) {
-    if (typeof filePathOrDb === 'string') {
-      this.#db = new Database(filePathOrDb, {
-        readonly: true,
-        fileMustExist: true,
-      })
-    } else {
-      this.#db = filePathOrDb
+  constructor(token, db, metadata) {
+    if (token !== INTERNAL) {
+      throw new TypeError('Use MBTiles.open() to create an instance')
     }
-    this.#metadata = validate(this.#db)
+    this.#db = db
+    this.#metadata = metadata
     this.#getTileStmt = this.#db.prepare(
       'SELECT * FROM tiles WHERE zoom_level = ? AND tile_column = ? AND tile_row = ?',
     )
+  }
+
+  /**
+   * Open an MBTiles database.
+   *
+   * @param {string | ArrayBuffer | Uint8Array | import('better-sqlite3').Database} source File path, buffer, or better-sqlite3 Database instance.
+   * @returns {Promise<MBTiles>}
+   */
+  static async open(source) {
+    /** @type {import('better-sqlite3').Database} */
+    let db
+    if (typeof source === 'string') {
+      db = new Database(source, { readonly: true, fileMustExist: true })
+    } else if (source instanceof ArrayBuffer) {
+      db = new Database(Buffer.from(source))
+    } else if (source instanceof Uint8Array) {
+      db = new Database(
+        Buffer.from(source.buffer, source.byteOffset, source.byteLength),
+      )
+    } else {
+      db = source
+    }
+    const metadata = validate(db)
+    return new MBTiles(INTERNAL, db, metadata)
   }
 
   /**
@@ -81,27 +102,4 @@ export class MBTiles {
       yield tileFromRow(row)
     }
   }
-
-}
-
-/**
- * @param {TileRow} tileRow
- * @returns {Tile}
- */
-function tileFromRow({
-  zoom_level: z,
-  tile_column: x,
-  tile_row,
-  tile_data: data,
-}) {
-  // Flip Y coordinate because MBTiles files are TMS.
-  const y = (1 << z) - 1 - tile_row
-  if (!data) {
-    throw new Error(`Invalid tile data for tile ${z}/${x}/${y}`)
-  }
-  const format = tiletype.type(data)
-  if (typeof format !== 'string') {
-    throw new Error(`Invalid tile data for tile ${z}/${x}/${y}`)
-  }
-  return { z, x, y, data: new Uint8Array(data.buffer, data.byteOffset, data.byteLength), format }
 }

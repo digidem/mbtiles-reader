@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config'
 import { playwright } from '@vitest/browser-playwright'
+import { defineConfig } from 'vitest/config'
 import type { BrowserInstanceOption } from 'vitest/node'
 
 const browserInstances: BrowserInstanceOption[] = [{ browser: 'chromium' }]
@@ -29,26 +29,17 @@ export default defineConfig({
         optimizeDeps: {
           exclude: ['@sqlite.org/sqlite-wasm'],
         },
-        server: {
-          headers: {
-            'Cross-Origin-Opener-Policy': 'same-origin',
-            'Cross-Origin-Embedder-Policy': 'require-corp',
-          },
-        },
         plugins: [
           {
             name: 'cross-origin-isolation',
             configureServer(server) {
-              server.middlewares.use((_req, res, next) => {
-                res.setHeader(
-                  'Cross-Origin-Opener-Policy',
-                  'same-origin',
-                )
-                res.setHeader(
-                  'Cross-Origin-Embedder-Policy',
-                  'require-corp',
-                )
-                next()
+              // Hook into the HTTP server directly to ensure COOP/COEP
+              // headers are set on ALL responses, including Vitest's
+              // internal HTML pages (orchestrator/tester) which are
+              // served by middleware that runs before plugin middleware.
+              server.httpServer?.prependListener('request', (_req, res) => {
+                res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+                res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless')
               })
             },
           },
@@ -58,11 +49,7 @@ export default defineConfig({
           include: ['test/browser.test.js'],
           browser: {
             enabled: true,
-            provider: playwright({
-              launchOptions: {
-                args: ['--enable-features=SharedArrayBuffer'],
-              },
-            }),
+            provider: playwright(),
             headless: true,
             screenshotFailures: false,
             instances: browserInstances,

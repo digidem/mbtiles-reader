@@ -12,16 +12,13 @@ The correct entry point is selected automatically via the `"browser"` [condition
 
 The platform-specific SQLite drivers (`better-sqlite3` for Node.js, `@sqlite.org/sqlite-wasm` for browsers) are optional dependencies — only the one needed for your platform will be used, and a failed install of the other won't cause errors.
 
-## Usage (Node.js)
+## Usage
 
 ```js
 import { MBTiles } from 'mbtiles-reader'
 
-// Open from a file path
-const mbtiles = new MBTiles('path/to/tiles.mbtiles')
-
-// Or pass an existing better-sqlite3 Database instance
-// const mbtiles = new MBTiles(db)
+// Open from a file path (Node.js) or ArrayBuffer/Uint8Array (both platforms)
+const mbtiles = await MBTiles.open('path/to/tiles.mbtiles')
 
 // Read a single tile (XYZ coordinates)
 const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
@@ -40,31 +37,29 @@ console.log(mbtiles.metadata)
 mbtiles.close()
 ```
 
-## Usage (Browser)
+### Opening from a buffer
+
+Both platforms support opening from an `ArrayBuffer` or `Uint8Array`:
 
 ```js
-import { MBTiles } from 'mbtiles-reader'
-
-// Open from a File (e.g. from an <input type="file">)
-const mbtiles = await MBTiles.open(file)
-
-// Also accepts ArrayBuffer or Uint8Array
 const response = await fetch('/tiles.mbtiles')
 const mbtiles = await MBTiles.open(await response.arrayBuffer())
+```
 
-// Same API as Node for reading tiles
-const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
-console.log(tile.format) // 'png', 'jpg', 'webp', or 'pbf'
-console.log(tile.data)   // Uint8Array
+### Browser-specific sources
 
-// Iterate over all tiles
-for (const { z, x, y, data, format } of mbtiles) {
-  // ...
-}
+In the browser, `MBTiles.open()` also accepts a `File` (e.g. from `<input type="file">`):
 
-console.log(mbtiles.metadata)
+```js
+const mbtiles = await MBTiles.open(file)
+```
 
-mbtiles.close()
+### Node.js-specific sources
+
+In Node.js, `MBTiles.open()` also accepts an existing [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) `Database` instance:
+
+```js
+const mbtiles = await MBTiles.open(db)
 ```
 
 ### OPFS (Web Worker)
@@ -112,27 +107,13 @@ export default {
 
 ## API
 
-### Node.js
-
-#### `new MBTiles(pathOrDb)`
-
-Creates a new MBTiles reader. Throws if the file is missing, corrupt, or not a valid MBTiles file.
-
-- `pathOrDb` — file path (`string`) or an existing [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) `Database` instance.
-
-### Browser
-
 #### `MBTiles.open(source)` → `Promise<MBTiles>`
 
-Opens an MBTiles database in the browser.
+Opens an MBTiles database. Throws if the file is missing, corrupt, or not a valid MBTiles file.
 
-- `source` — an OPFS file path (`string`), `File`, `ArrayBuffer`, or `Uint8Array`.
+- `source` — an `ArrayBuffer` or `Uint8Array` (both platforms), file path or [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) `Database` (Node.js), or `File` / OPFS path (browser).
 
-When `source` is a string, it is treated as an OPFS file path and opened directly with `OpfsDb` (requires a Web Worker context). This avoids loading the entire database into wasm memory. When `source` is a `File`, `ArrayBuffer`, or `Uint8Array`, the data is loaded into memory using SQLite's `sqlite3_deserialize`.
-
-### Shared API
-
-These methods are the same on both platforms.
+In the browser, when `source` is a string it is treated as an OPFS file path and opened directly with `OpfsDb` (requires a Web Worker context). This avoids loading the entire database into wasm memory. When `source` is a `File`, `ArrayBuffer`, or `Uint8Array`, the data is loaded into memory using SQLite's `sqlite3_deserialize`.
 
 #### `mbtiles.getTile({ z, x, y })` → `Tile`
 

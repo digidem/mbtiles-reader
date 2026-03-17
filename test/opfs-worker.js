@@ -1,6 +1,9 @@
+/// <reference lib="webworker" />
 import { MBTiles } from '../index.browser.js'
 
 const OPFS_FILENAME = 'test.mbtiles'
+/** @type {MBTiles | undefined} */
+let mbtiles
 
 self.onmessage = async (event) => {
   try {
@@ -8,8 +11,7 @@ self.onmessage = async (event) => {
     switch (type) {
       case 'open': {
         await copyToOpfs(buffer, OPFS_FILENAME)
-        const mbtiles = await MBTiles.open(OPFS_FILENAME)
-        self._mbtiles = mbtiles
+        mbtiles = await MBTiles.open(OPFS_FILENAME)
         self.postMessage({
           type: 'opened',
           metadata: mbtiles.metadata,
@@ -17,7 +19,10 @@ self.onmessage = async (event) => {
         break
       }
       case 'getTile': {
-        const tile = self._mbtiles.getTile(coords)
+        if (!mbtiles) {
+          throw new Error('MBTiles not opened')
+        }
+        const tile = mbtiles.getTile(coords)
         self.postMessage({
           type: 'tile',
           tile: { z: tile.z, x: tile.x, y: tile.y, format: tile.format },
@@ -26,15 +31,18 @@ self.onmessage = async (event) => {
         break
       }
       case 'close': {
-        self._mbtiles.close()
-        self._mbtiles = undefined
+        mbtiles?.close()
+        mbtiles = undefined
         await removeFromOpfs(OPFS_FILENAME)
         self.postMessage({ type: 'closed' })
         break
       }
     }
   } catch (error) {
-    self.postMessage({ type: 'error', message: error.message })
+    self.postMessage({
+      type: 'error',
+      message: /** @type {Error} */ (error)?.message,
+    })
   }
 }
 
@@ -44,20 +52,9 @@ self.onmessage = async (event) => {
  */
 async function copyToOpfs(buffer, filename) {
   const root = await navigator.storage.getDirectory()
-  // Remove any stale file first to avoid lock conflicts
   await root.removeEntry(filename).catch(() => {})
   const fileHandle = await root.getFileHandle(filename, { create: true })
-  // Retry createSyncAccessHandle for WebKit transient OPFS errors
-  let accessHandle
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      accessHandle = await fileHandle.createSyncAccessHandle()
-      break
-    } catch (e) {
-      if (attempt === 2) throw e
-      await new Promise((r) => setTimeout(r, 100 * (attempt + 1)))
-    }
-  }
+  const accessHandle = await fileHandle.createSyncAccessHandle()
   try {
     accessHandle.write(new Uint8Array(buffer), { at: 0 })
   } finally {

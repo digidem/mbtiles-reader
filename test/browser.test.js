@@ -23,17 +23,11 @@ describe('MBTiles (browser)', () => {
       const buffer = await fetchFixture(`images/${filename}`)
       return new Uint8Array(buffer)
     },
+    readFixture: fetchFixture,
+    open: (source) => MBTiles.open(source),
   })
 
   describe('browser-specific', () => {
-    it('open with Uint8Array', async () => {
-      const buffer = await fetchFixture('plain_1.mbtiles')
-      const mbtiles = await MBTiles.open(new Uint8Array(buffer))
-      const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
-      expect(tile.format).toBe('png')
-      mbtiles.close()
-    })
-
     it('open with File', async () => {
       const buffer = await fetchFixture('plain_1.mbtiles')
       const file = new File([buffer], 'test.mbtiles', {
@@ -43,13 +37,6 @@ describe('MBTiles (browser)', () => {
       const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
       expect(tile.format).toBe('png')
       mbtiles.close()
-    })
-
-    it('constructor throws without MBTiles.open()', () => {
-      expect(() => {
-        // @ts-expect-error - testing runtime guard
-        new MBTiles()
-      }).toThrow('Use MBTiles.open() to create an instance')
     })
 
     it('corrupt file rejects', async () => {
@@ -97,36 +84,51 @@ describe('MBTiles (browser)', () => {
       })
     }
 
-    it('opens MBTiles via OPFS in a worker', async () => {
-      const worker = new Worker(new URL('./opfs-worker.js', import.meta.url), {
-        type: 'module',
-      })
-      try {
-        const buffer = await fetchFixture('plain_1.mbtiles')
-        const opened = await workerRpc(worker, { type: 'open', buffer }, [
-          buffer,
-        ])
-        expect(opened.type).toBe('opened')
-        expect(opened.metadata.name).toBe('plain_1')
-        expect(opened.metadata.format).toBe('png')
+    // Playwright's WebKit uses ephemeral (non-persistent) browser contexts
+    // which do not support OPFS. This is a known Playwright limitation, not
+    // a library bug — OPFS works in real Safari.
+    // See: https://github.com/microsoft/playwright/issues/18235
+    // Detect Safari/WebKit (not Chrome, which also has "AppleWebKit" in UA)
+    const isSafariWebKit =
+      /AppleWebKit/.test(navigator.userAgent) &&
+      !/Chrome/.test(navigator.userAgent)
 
-        const tileResult = await workerRpc(worker, {
-          type: 'getTile',
-          coords: { z: 0, x: 0, y: 0 },
-        })
-        expect(tileResult.type).toBe('tile')
-        expect(tileResult.tile.format).toBe('png')
-        expect(tileResult.data).toBeInstanceOf(Uint8Array)
-        expect(tileResult.data.length).toBeGreaterThan(0)
+    it.skipIf(isSafariWebKit)(
+      'opens MBTiles via OPFS in a worker',
+      async () => {
+        const worker = new Worker(
+          new URL('./opfs-worker.js', import.meta.url),
+          {
+            type: 'module',
+          },
+        )
+        try {
+          const buffer = await fetchFixture('plain_1.mbtiles')
+          const opened = await workerRpc(worker, { type: 'open', buffer }, [
+            buffer,
+          ])
+          expect(opened.type).toBe('opened')
+          expect(opened.metadata.name).toBe('plain_1')
+          expect(opened.metadata.format).toBe('png')
 
-        const expected = await fetchFixture('images/plain_1_0_0_0.png')
-        expect(tileResult.data).toEqual(new Uint8Array(expected))
+          const tileResult = await workerRpc(worker, {
+            type: 'getTile',
+            coords: { z: 0, x: 0, y: 0 },
+          })
+          expect(tileResult.type).toBe('tile')
+          expect(tileResult.tile.format).toBe('png')
+          expect(tileResult.data).toBeInstanceOf(Uint8Array)
+          expect(tileResult.data.length).toBeGreaterThan(0)
 
-        const closed = await workerRpc(worker, { type: 'close' })
-        expect(closed.type).toBe('closed')
-      } finally {
-        worker.terminate()
-      }
-    })
+          const expected = await fetchFixture('images/plain_1_0_0_0.png')
+          expect(tileResult.data).toEqual(new Uint8Array(expected))
+
+          const closed = await workerRpc(worker, { type: 'close' })
+          expect(closed.type).toBe('closed')
+        } finally {
+          worker.terminate()
+        }
+      },
+    )
   })
 })

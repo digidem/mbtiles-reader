@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 /**
+ * @typedef {Iterable<import('../lib/tile.js').Tile> & { metadata: import('../lib/validate.js').MBTilesMetadata, getTile: (coords: {z: number, x: number, y: number}) => import('../lib/tile.js').Tile, close: () => void }} MBTilesInstance
+ */
+
+/**
  * @typedef {object} TestHelpers
- * @property {(fixtureName: string) => Promise<import('../lib/validate.js').MBTilesMetadata & { getTile: Function, close: Function, [Symbol.iterator]: Function }>} openMBTiles
+ * @property {(fixtureName: string) => Promise<MBTilesInstance>} openMBTiles
  * @property {(filename: string) => Promise<Uint8Array>} readFixtureImage
+ * @property {(fixtureName: string) => Promise<ArrayBuffer>} readFixture
+ * @property {(source: any) => Promise<MBTilesInstance>} open
  */
 
 /**
@@ -11,7 +17,12 @@ import { describe, expect, it } from 'vitest'
  * between the node and browser implementations.
  * @param {TestHelpers} helpers
  */
-export function registerSharedTests({ openMBTiles, readFixtureImage }) {
+export function registerSharedTests({
+  openMBTiles,
+  readFixtureImage,
+  readFixture,
+  open,
+}) {
   describe('getTile', () => {
     it('returns correct tile data for a known tile', async () => {
       const mbtiles = await openMBTiles('plain_1.mbtiles')
@@ -115,6 +126,24 @@ export function registerSharedTests({ openMBTiles, readFixtureImage }) {
         ),
       }
       expect(roundedMetadata).toEqual(expectedMetadata)
+      mbtiles.close()
+    })
+  })
+
+  describe('open', () => {
+    it('open with ArrayBuffer', async () => {
+      const buffer = await readFixture('plain_1.mbtiles')
+      const mbtiles = await open(buffer)
+      const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
+      expect(tile.format).toBe('png')
+      mbtiles.close()
+    })
+
+    it('open with Uint8Array', async () => {
+      const buffer = await readFixture('plain_1.mbtiles')
+      const mbtiles = await open(new Uint8Array(buffer))
+      const tile = mbtiles.getTile({ z: 0, x: 0, y: 0 })
+      expect(tile.format).toBe('png')
       mbtiles.close()
     })
   })
