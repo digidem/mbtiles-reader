@@ -7,5 +7,5 @@
     "noEmitOnError": true,
     "outDir": "dist"
   },
-  "include": ["index.js"]
+  "include": ["index.js", "index.browser.js", "types"]
 }
