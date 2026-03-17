@@ -76,5 +76,18 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vitest": "^4.1.0"
-  }
+  },
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/digidem/mbtiles-reader.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/digidem/mbtiles-reader/issues"
+  },
+  "homepage": "https://github.com/digidem/mbtiles-reader#readme"
 }
