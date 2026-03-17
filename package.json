@@ -1,6 +1,6 @@
 {
   "name": "mbtiles-reader",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Reader for MBTiles files.",
   "author": "Gregor MacLennan",
   "type": "module",
