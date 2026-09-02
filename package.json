@@ -57,7 +57,7 @@
     "@sqlite.org/sqlite-wasm": "^3.51.2-build7"
   },
   "optionalDependencies": {
-    "better-sqlite3": "^12.8.0"
+    "better-sqlite3": "^12.8.0 || ^13.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

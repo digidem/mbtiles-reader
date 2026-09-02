@@ -12,6 +12,8 @@ The correct entry point is selected automatically via the `"browser"` [condition
 
 The platform-specific SQLite drivers (`better-sqlite3` for Node.js, `@sqlite.org/sqlite-wasm` for browsers) are optional dependencies — only the one needed for your platform will be used, and a failed install of the other won't cause errors.
 
+Either `better-sqlite3` v12 or v13 works, so this package does not force a major on a dependency tree that has already settled on one. Both are covered by CI.
+
 ## Usage
 
 ```js
