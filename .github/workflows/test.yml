@@ -64,3 +64,29 @@ jobs:
         with:
           path: ${{ steps.playwright-cache-path.outputs.path }}
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
+
+  better-sqlite3-majors:
+    # better-sqlite3 is declared as an optional dependency spanning two majors so
+    # consumers are not forced onto one. Check that both actually work.
+    strategy:
+      fail-fast: false
+      matrix:
+        better-sqlite3: [12, 13]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install better-sqlite3 v${{ matrix.better-sqlite3 }}
+        run: npm install --no-save better-sqlite3@${{ matrix.better-sqlite3 }}
+
+      - name: Run Node tests
+        run: npx vitest run --project node
